@@ -1,0 +1,2 @@
+{:linters {:unused-namespace {:level :off}}
+ :output  {:exclude-files ["clef$"]}}
