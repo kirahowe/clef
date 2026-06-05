@@ -1,0 +1,13 @@
+{:paths     ["src" "resources" "dev"]
+ :deps      {}
+ :bbin/bin  {clef {:main-opts ["-f" "clef"]}}
+ :tasks
+ {test       {:doc  "Run unit tests via Cognitect test-runner"
+              :task (shell "clj -X:test")}
+  lint       {:doc  "Run clj-kondo on src + test + dev"
+              :task (shell "clj-kondo --lint src test dev")}
+  clef       {:doc  "Run clef from source (via clj) — for local dev"
+              :task (apply shell "clj -M -m clef.main" *command-line-args*)}
+  gen-script {:doc  "Generate the single-file clef bb script at ./clef"
+              :requires ([clef.gen-script :as gen])
+              :task (gen/gen-script)}}}
