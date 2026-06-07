@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test-lint-and-script-fresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Clojure CLI + bb + clj-kondo
+        uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+          bb: latest
+          clj-kondo: latest
+
+      - name: Cache Clojure deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-deps-${{ hashFiles('deps.edn', 'bb.edn') }}
+
+      - name: Run tests
+        run: bb test
+
+      - name: Lint
+        run: bb lint
+
+      - name: Regenerate script and verify no diff
+        run: |
+          bb gen-script
+          git diff --exit-code -- clef
+
+      - name: Smoke-test generated script
+        run: ./clef --version
