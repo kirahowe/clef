@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Java + Clojure + bb
+        uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+          bb: latest
+
+      - name: Validate tag matches version.clj
+        id: validate
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          FILE_VERSION=$(bb -e "(require 'clef.version) (print clef.version/version)")
+          if [ "$TAG" != "$FILE_VERSION" ]; then
+            echo "Tag version ($TAG) does not match version.clj ($FILE_VERSION)"
+            exit 1
+          fi
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify ./clef is up to date with src/
+        run: |
+          bb gen-script
+          git diff --exit-code -- clef
+
+      - name: Smoke-test the script
+        run: ./clef --version
+
+      - name: Fetch the GitHub archive zip and compute SHA256
+        id: sha
+        env:
+          VERSION: ${{ steps.validate.outputs.version }}
+        run: |
+          URL="https://github.com/kirahowe/clef/archive/v${VERSION}.zip"
+          # The tag was just pushed; wait briefly for GH to make the archive available.
+          for i in 1 2 3 4 5; do
+            if curl -fsSL -o archive.zip "$URL"; then break; fi
+            sleep 5
+          done
+          sha=$(sha256sum archive.zip | cut -d' ' -f1)
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: kirahowe/homebrew-clef
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Rewrite Formula/clef.rb
+        env:
+          VERSION: ${{ steps.validate.outputs.version }}
+          SHA: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          cat > tap/Formula/clef.rb <<EOF
+          class Clef < Formula
+            desc "Opinionated full-stack web framework for Clojure (pre-alpha)"
+            homepage "https://github.com/kirahowe/clef"
+            url "https://github.com/kirahowe/clef/archive/v${VERSION}.zip"
+            sha256 "${SHA}"
+            version "${VERSION}"
+            license "MIT"
+
+            depends_on "borkdude/brew/babashka"
+
+            def install
+              bin.install "clef"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/clef --version").strip
+            end
+          end
+          EOF
+
+      - name: Commit and push formula update
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/clef.rb
+          git commit -m "clef ${{ steps.validate.outputs.version }}"
+          git push
