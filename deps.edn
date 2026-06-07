@@ -1,5 +1,6 @@
 {:paths ["src" "resources"]
- :deps  {}
+ :deps  {babashka/fs    {:mvn/version "0.5.22"}
+         selmer/selmer  {:mvn/version "1.12.61"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps  {io.github.cognitect-labs/test-runner

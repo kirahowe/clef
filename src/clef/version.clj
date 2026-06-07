@@ -1,3 +1,3 @@
 (ns clef.version)
 
-(def version "0.0.1")
+(def version "0.0.2")
