@@ -1,0 +1,22 @@
+{:{{namespace}}.log/telemere
+ {:min-level :info}
+
+ :{{namespace}}.concerns.reitit/router
+ {:data
+  [["/"         {:get {:handler #ig/ref :{{namespace}}.handlers/home}}]
+   ["/health"   {:get {:handler #ig/ref :{{namespace}}.handlers/health}}]
+   ["/static/*" #ig/ref :{{namespace}}.handlers/static]]}
+
+ :{{namespace}}.concerns.reitit/default-handler {}
+
+ :{{namespace}}.concerns.reitit/ring-handler
+ {:router          #ig/ref :{{namespace}}.concerns.reitit/router
+  :default-handler #ig/ref :{{namespace}}.concerns.reitit/default-handler}
+
+ :{{namespace}}.handlers/home   {}
+ :{{namespace}}.handlers/health {}
+ :{{namespace}}.handlers/static {:root "public"}
+
+ :{{namespace}}.concerns/http-kit
+ {:handler #ig/ref :{{namespace}}.concerns.reitit/ring-handler
+  :opts    {:port 8080 :ip "0.0.0.0"}}}

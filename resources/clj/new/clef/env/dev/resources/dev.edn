@@ -1,0 +1,5 @@
+{:{{namespace}}.log/telemere
+ {:min-level :debug}
+
+ :{{namespace}}.concerns/http-kit
+ {:opts {:port 3000}}}
