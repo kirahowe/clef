@@ -54,6 +54,23 @@ env/prod/resources/prod.edn    # clj -M:prod
 The few values that must come from the environment (ports, secrets) are
 pulled in inline via reader literals like `#env/long ["PORT" 8080]`.
 
+### Overriding vs. extending
+
+Profiles are combined with [meta-merge](https://github.com/weavejester/meta-merge):
+maps deep-merge, but collections (vectors, lists, sets) **concatenate**. So a
+profile that re-declares the reitit router `:data` *appends* its routes to the
+base routes rather than replacing them — handy for adding routes, but it means
+you can't silently override one. To replace a collection outright, tag it with
+`^:replace`:
+
+```clojure
+;; appends to the base routes
+:app.concerns.reitit/router {:data [["/extra" ...]]}
+
+;; replaces the base routes entirely
+:app.concerns.reitit/router {:data ^:replace [["/" ...]]}
+```
+
 ## License
 
 MIT
