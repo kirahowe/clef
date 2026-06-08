@@ -5,13 +5,19 @@
 (def template-root "resources/clj/new/clef")
 (def templates-file "src/clef/templates.clj")
 
+(def ^:private ignored-files
+  "OS/editor junk that must never be embedded into templates.clj."
+  #{".DS_Store" "Thumbs.db"})
+
 (defn- template-files
   "Map of {relative-path content} for every file under the template root,
    in sorted order for deterministic output."
   []
   (let [root (fs/file template-root)]
     (into (sorted-map)
-          (for [f (filter fs/regular-file? (file-seq root))]
+          (for [f     (file-seq root)
+                :when (and (fs/regular-file? f)
+                           (not (ignored-files (fs/file-name f))))]
             [(str (fs/relativize root f)) (slurp f)]))))
 
 (defn gen-templates!
