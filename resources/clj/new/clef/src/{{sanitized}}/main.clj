@@ -23,7 +23,10 @@
   (cond
     (map? profile)    profile
     (nil? profile)    {}
-    (string? profile) (->> profile io/resource slurp read-config)
+    (string? profile) (if-let [url (io/resource profile)]
+                        (read-config (slurp url))
+                        (throw (ex-info (str "config resource not found on classpath: " profile)
+                                        {:profile profile})))
     :else             (->> profile slurp read-config)))
 
 (defn merge-profiles [profiles]
