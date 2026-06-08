@@ -38,6 +38,16 @@
           (is (not (str/includes? sys "{{")))))
       (finally (fs/delete-tree dir)))))
 
+(deftest rejects-invalid-names
+  (let [dir (fs/create-temp-dir {:prefix "clef-new-test"})]
+    (try
+      (testing "names that don't munge to a legal namespace are rejected"
+        (doseq [bad ["123app" "my app" "../evil" "/tmp/x" "foo/bar" "foo." ""]]
+          (is (thrown? clojure.lang.ExceptionInfo
+                       (new/new! bad {:target (fs/file dir "proj")}))
+              (str "should reject " (pr-str bad)))))
+      (finally (fs/delete-tree dir)))))
+
 (deftest refuses-nonempty-target
   (let [dir (fs/create-temp-dir {:prefix "clef-new-test"})]
     (try

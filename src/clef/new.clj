@@ -33,13 +33,28 @@
      :sanitized sanitized
      :title     (capitalize-first ns-name)}))
 
+(def ^:private name-pattern
+  #"[a-zA-Z][a-zA-Z0-9_-]*(\.[a-zA-Z][a-zA-Z0-9_-]*)*")
+
+(defn- validate-name!
+  "Throws ExceptionInfo unless `name` munges to a legal Clojure namespace
+  — letters, digits, - and ., starting with a letter. This also rejects
+  path separators and .., so the name is safe to use as a directory."
+  [name]
+  (when-not (re-matches name-pattern name)
+    (throw (ex-info (str "invalid project name: " (pr-str name)
+                         " — use letters, digits, - and ., starting with a letter")
+                    {:name name}))))
+
 (defn new!
   "Generate the project into ./<name> (or `:target`). Returns the target
-  as a babashka.fs path. Throws ExceptionInfo if the target exists and
-  is non-empty."
+  as a babashka.fs path. Throws ExceptionInfo if the name is not a legal
+  project name, or if the target exists and is non-empty."
   [raw-name {:keys [target]}]
-  (let [vars (->vars raw-name)
-        dest (fs/file (or target raw-name))]
+  (let [raw-name (str/trim raw-name)
+        _        (validate-name! raw-name)
+        vars     (->vars raw-name)
+        dest     (fs/file (or target raw-name))]
     (when (and (fs/exists? dest) (seq (fs/list-dir dest)))
       (throw (ex-info (str "target already exists and is not empty: " dest)
                       {:target (str dest)})))
@@ -61,7 +76,7 @@
           (println (str "Created " dest))
           (println)
           (println "Next steps:")
-          (println (str "  cd " raw-name))
+          (println (str "  cd " dest))
           (println "  clj -M:dev      # start a REPL, then (dev) (go)")
           (println "  clj -M:test     # run the tests")
           0)
