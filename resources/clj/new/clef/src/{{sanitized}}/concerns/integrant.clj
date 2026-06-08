@@ -3,6 +3,7 @@
   init-keys. Required (transitively) by any entry point that reads
   the system config or calls `ig/load-namespaces`."
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [integrant.core :as ig]))
 
 ;; ---------- Constants ----------
@@ -22,19 +23,29 @@
 (defmethod print-method Secret [_ ^java.io.Writer w]
   (.write w "#secret \"<redacted>\""))
 
-(defn- env*
+(defn- env-value
+  "Looks up an env var, treating an unset or blank value as absent.
+  `arg` is \"VAR\" or [\"VAR\" default]. Returns [found? value]; found?
+  is true when the var is set to a non-blank value or a default was
+  supplied (the default may legitimately be nil or false)."
   [arg]
-  (let [[var-name default] (if (vector? arg) arg [arg nil])]
-    (or (System/getenv var-name) default)))
+  (let [[var-name & default] (if (vector? arg) arg [arg])
+        v                     (System/getenv var-name)]
+    (cond
+      (not (str/blank? v)) [true v]
+      (seq default)        [true (first default)]
+      :else                [false nil])))
 
 (defn env
   [arg]
-  (or (env* arg)
-      (throw (ex-info (str "missing required env var: " arg) {:env arg}))))
+  (let [[found? v] (env-value arg)]
+    (if found?
+      v
+      (throw (ex-info (str "missing required env var: " arg) {:env arg})))))
 
 (defn env-opt
   [arg]
-  (env* arg))
+  (second (env-value arg)))
 
 (defn env-long
   [arg]
@@ -42,7 +53,7 @@
 
 (defn env-bool
   [arg]
-  (contains? #{"true" "1" "yes"} (some-> (env arg) str)))
+  (contains? #{"true" "1" "yes"} (some-> (env arg) str str/lower-case)))
 
 (defn env-secret
   "#env/secret -- required env var wrapped in a Secret that redacts itself."
@@ -55,4 +66,5 @@
    'env/long   env-long
    'env/bool   env-bool
    'env/secret env-secret
+   'secret     ->Secret
    'resource   io/resource})
